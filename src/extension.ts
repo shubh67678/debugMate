@@ -3,100 +3,179 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 
-function processFile(filePath: string, searchString: string, outputFile: string): void {
-    // Read the file asynchronously
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error(`Error reading the file: ${err}`);
-            return;
-        }
 
-        var lines = data.split('\n');
-		// lines = lines[:-5];
-		lines = lines.slice(0, lines.length - 6);
+function processFile(filePath: string, searchString: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        // Read the file asynchronously
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                reject(`Error reading the file: ${err}`);
+                return;
+            }
 
+            const lines = data.split('\n');
 
-		for(let i = 0; i<lines.length; i++){
-			console.log(lines[i]);
-		}
+            // Slice the lines to remove the last 7 lines
+            const linesToProcess = lines.slice(0, lines.length - 7);
 
-        // console.log(`Total lines in the file: ${lines.length}`);
-        
-        // let lastIndex = -1;
-        // let secondLastIndex = -1;
-        // let once = false;
+            // Find the last occurrence of the search string
+            let lastIndex = -1;
+            for (let i = linesToProcess.length - 1; i >= 0; i--) {
+                if (linesToProcess[i].includes(searchString)) {
+                    lastIndex = i;
+                    break;
+                }
+            }
 
-        // let interestedLines: string[] = [];
-
-        // // Find the last and second-to-last occurrence of the search string
-        // for (let i = lines.length - 1; i >= 0; i--) {
-        //     console.log(`Checking line ${i}: ${lines[i]}`);
-
-        //     if (lines[i].includes(searchString)) {
-        //         console.log(`Found search string at line ${i}`);
-        //         if (once) {
-        //             secondLastIndex = i;
-        //             console.log(`Second-to-last occurrence found at line ${secondLastIndex}`);
-        //             break;
-        //         }
-        //         once = true;
-        //         lastIndex = i;
-        //         console.log(`Last occurrence found at line ${lastIndex}`);
-        //     }
-        // }
-
-        // // Debug the final indices found
-        // console.log(`Last occurrence index: ${lastIndex}`);
-        // console.log(`Second-to-last occurrence index: ${secondLastIndex}`);
-
-        // // If both occurrences were found, create the array as per the requirement
-        // if (secondLastIndex !== -1 && lastIndex !== -1) {
-        //     // Get lines after the second-to-last occurrence and before the last occurrence
-        //     interestedLines = lines.slice(secondLastIndex + 1, lastIndex).concat(lines.slice(lastIndex + 1));
-
-        //     // Optionally write the result to the output file
-        //     // fs.writeFile(outputFile, interestedLines.join('\n'), (err) => {
-        //     //     if (err) {
-        //     //         console.error(`Error writing to the file: ${err}`);
-        //     //     } else {
-        //     //         console.log(`Data has been written to ${outputFile}`);
-        //     //     }
-        //     // });
-
-        //     console.log(`The following lines are the result:`);
-        //     console.log(interestedLines.join('\n'));
-        // } else {
-        //     console.log(`Less than two occurrences of '${searchString}' were found in the file.`);
-        // }
+            let resultLines: string[] = [];
+            // If the search string is found, return the lines from the last occurrence to the end
+            if (lastIndex !== -1) {
+                resultLines = linesToProcess.slice(lastIndex); // Get all lines from the last occurrence onwards
+                resolve(resultLines);  // Return the result through resolve
+            } else {
+                reject(`The search string '${searchString}' was not found in the file.`);
+            }
+        });
     });
 }
+
+
+function readFile(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        // Read the file asynchronously
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                reject(`Error reading the file: ${err}`);
+                return;
+            }
+			// console.log(data);
+			resolve(data);
+        });
+    });
+}
+
+
+function saveListToFile(fileName: string, data: string[]): void {
+	const fileContent = data.join('\n');  // Join the list of strings with newlines
+	fs.writeFile(fileName, fileContent, (err) => {
+	  if (err) {
+		console.error('Error writing to file', err);
+	  } else {
+		console.log('File saved successfully');
+	  }
+	});
+  }
+  
+  // Example usage:
 
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
+	var counter = 0;
+	var cur_file = "";
+	const terminal = vscode.window.createTerminal('My Terminal');
+
+	const ERROR_OUTPUT_FILE = "C:\\Users\\shubh\\tmp\\error-output.txt";
+	const GIT_DIFF_FILE = "C:\\Users\\shubh\\tmp\\git-diff-output.txt";
+	const TERMINAL_OUTPUT_FILE = "C:\\Users\\shubh\\tmp\\terminal-output"; // make complete with counter
+	
+	let current_git_diff: string;
+	let current_error_log: string;
+
+	startRecording(terminal);
+
+
+	function saveTerminalOutput(terminal: any): void {
+		terminal.sendText('Stop-Transcript');
+	}
+
+	function parseTerminalOutput(filePath: string, searchString: string){
+		processFile(filePath, searchString)
+			.then(resultLines => {
+				current_error_log = resultLines.join("\n");
+			})
+			.catch(error => {
+				console.error(error);
+			});
+	}
+
+	function startRecording(terminal: any): void {
+		terminal.show();
+		counter += 1;
+		const filePath = TERMINAL_OUTPUT_FILE + counter.toString() + ".txt";  // Correct file path with escaped backslashes
+		cur_file = filePath;
+		terminal.sendText('Start-Transcript ' + "\"" + filePath + "\"");
+	}
+	
+
+	const recordTerminal = vscode.commands.registerCommand('debugmate.startRecording', () => {
+		terminal.show();
+		counter += 1;
+		const filePath = TERMINAL_OUTPUT_FILE + counter.toString() + ".txt";  // Correct file path with escaped backslashes
+		cur_file = filePath;
+		terminal.sendText('Start-Transcript ' + "\"" + filePath + "\"");
+	});
+
 
 
 	const printTerminalData = vscode.commands.registerCommand('debugmate.printTerminalData', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-	// 	const terminal = vscode.window.createTerminal('My Terminal');
-    // terminal.show();
-    // terminal.sendText('wsl awk \'{line[NR]=$0} END {for(i=NR;i>=1;i--) if(line[i] ~ /shubham@LAPTOP-U5S0C6BK/) {for(j=i;j<=NR;j++) print line[j]; break}}\' /mnt/c/Users/shubh/tmp/typescript');
-    // vscode.window.showInformationMessage('Following is your current terminal data');
-		
-		const filePath = 'C:\\Users\\shubh\\terminal-output.txt';  // Correct file path with escaped backslashes
-
-		const searchString = 'shubh';  // String to search for
-		const outputFile = '~/last_command.txt';  // Output file name
-
-		processFile(filePath, searchString, outputFile);
-
+		// terminal.show();
+		// terminal.pr
+		terminal.sendText('Stop-Transcript');
+		const searchString = 'debugmate>';  // String to search for
+		processFile(cur_file, searchString)
+		.then(resultLines => {
+			current_error_log = resultLines.join("\n");
+			// console.log("Returning result lines from the last occurrence:");
+			// resultLines.forEach(line => console.log(line));
+			saveListToFile(ERROR_OUTPUT_FILE, resultLines);
+		})
+		.catch(error => {
+			console.error(error);
+		});
 	});
 
+	const gitDiff = vscode.commands.registerCommand('debugmate.gitDiff', () => {
+		// terminal.show();
+		terminal.sendText('git diff > ' + GIT_DIFF_FILE);
+		readFile(GIT_DIFF_FILE)
+			.then(response => {current_git_diff = response;})
+	});
+
+
+	const generatePrompt = vscode.commands.registerCommand('debugmate.generatePrompt', () => {
+		console.log(current_error_log);
+		console.log(current_git_diff);
+	})
+	
+
+
+	const findError = vscode.commands.registerCommand('debugmate.findError', () => {
+		terminal.show();
+
+		saveTerminalOutput(terminal);
+		const searchString = 'debugmate>';  // String to search for
+		// processFile(cur_file, searchString);
+		
+		terminal.sendText('git diff > ' + GIT_DIFF_FILE);
+		readFile(GIT_DIFF_FILE)
+			.then(response => {current_git_diff = response;})
+		parseTerminalOutput(cur_file, searchString);
+		startRecording(terminal);
+		
+
+		console.log(current_error_log);
+		console.log(current_git_diff);
+	})
+	
 	context.subscriptions.push(printTerminalData);
+	context.subscriptions.push(gitDiff);
+	context.subscriptions.push(recordTerminal);
+	context.subscriptions.push(generatePrompt);
+	context.subscriptions.push(findError);
 }
 
-// This method is called when your extension is deactivated
+
 export function deactivate() {}

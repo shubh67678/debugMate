@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "debugmate.helloWorld",
-        "title": "Hello World"
+        "command": "debugmate.startRecording",
+        "title": "Start recording"
       },
       {
         "command": "debugmate.printTerminalData",
@@ -24,6 +24,18 @@
       {
         "command": "debugmate.printCurrentActiveTerminalData",
         "title": "active terminal data"
+      },
+      {
+        "command": "debugmate.gitDiff",
+        "title": "gitDiff"
+      },
+      {
+        "command": "debugmate.generatePrompt",
+        "title": "prompt"
+      },
+      {
+        "command": "debugmate.findError",
+        "title": "findError"
       }
     ]
   },
