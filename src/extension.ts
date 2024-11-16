@@ -156,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
 		terminal.show();
 
 		saveTerminalOutput(terminal);
-		const searchString = 'debugmate>';  // String to search for
+		const searchString = 'debugMate>';  // String to search for
 		// processFile(cur_file, searchString);
 		
 		terminal.sendText('git diff > ' + GIT_DIFF_FILE);
